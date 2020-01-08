@@ -1,91 +1,54 @@
+// Positions are matching their DNA -> RNA transcription, DNA_NUCLEOTIDES[i] == RNA_NUCLEOTIDES[i]
+const DNA_NUCLEOTIDES: [char; 4] = ['G', 'C', 'T', 'A'];
+const RNA_NUCLEOTIDES: [char; 4] = ['C', 'G', 'A', 'U'];
+
 #[derive(Debug, PartialEq)]
 pub struct DNA {
-  dna: String,
+  strand: String,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct RNA {
-  rna: String,
+  strand: String,
 }
 
 impl DNA {
   pub fn new(dna: &str) -> Result<DNA, usize> {
-    let verified_dna =
-      dna
-        .chars()
-        .enumerate()
-        .fold(Ok(String::new()), |acc, (index, nucleotide)| match acc {
-          Ok(mut acc) => {
-            if is_invalid_nucleotide(nucleotide) {
-              return Err(index);
-            } else {
-              acc.push(nucleotide);
-              return Ok(acc);
-            }
-          }
-          Err(index) => Err(index),
-        });
-    verified_dna.map(|dna| DNA { dna })
+    check_for_errors(dna, DNA_NUCLEOTIDES).map(|strand| DNA { strand })
   }
 
   pub fn into_rna(self) -> RNA {
     RNA {
-      rna: self
-        .dna
+      strand: self
+        .strand
         .chars()
-        .map(|c: char| match c {
-          'G' => 'C',
-          'C' => 'G',
-          'T' => 'A',
-          'A' => 'U',
-          _ => ' ',
+        .map(|c: char| {
+          RNA_NUCLEOTIDES[DNA_NUCLEOTIDES
+            .iter()
+            .position(|&n| n == c)
+            .expect("Bad DNA")]
         })
-        .fold(String::new(), |mut acc, c| {
-          acc.push(c);
-          acc
-        }),
+        .collect(),
     }
   }
 }
 
 impl RNA {
   pub fn new(rna: &str) -> Result<RNA, usize> {
-    let verified_rna =
-      rna
-        .chars()
-        .enumerate()
-        .fold(Ok(String::new()), |acc, (index, nucleotide)| match acc {
-          Ok(mut acc) => {
-            if is_invalid_nucleotide_rna(nucleotide) {
-              return Err(index);
-            } else {
-              acc.push(nucleotide);
-              return Ok(acc);
-            }
-          }
-          Err(index) => Err(index),
-        });
-    verified_rna.map(|rna| RNA { rna })
+    check_for_errors(rna, RNA_NUCLEOTIDES).map(|strand| RNA { strand })
   }
 }
 
-fn is_valid_nucleotide(nucleotide: char) -> bool {
-  match nucleotide {
-    'A' | 'C' | 'G' | 'T' => true,
-    _ => false,
-  }
+fn is_part_of(c: char, set: [char; 4]) -> bool {
+  (&set).iter().any(|n| *n == c)
 }
 
-fn is_invalid_nucleotide(n: char) -> bool {
-  !is_valid_nucleotide(n)
-}
-
-fn is_valid_nucleotide_rna(nucleotide: char) -> bool {
-  match nucleotide {
-    'A' | 'C' | 'G' | 'U' => true,
-    _ => false,
+fn check_for_errors(source: &str, validation_set: [char; 4]) -> Result<String, usize> {
+  let error = source
+    .char_indices()
+    .find(|(_, ch)| !is_part_of(*ch, validation_set));
+  match error {
+    Some((index, _)) => Err(index),
+    None => Ok(String::from(source)),
   }
-}
-fn is_invalid_nucleotide_rna(n: char) -> bool {
-  !is_valid_nucleotide_rna(n)
 }
