@@ -21,6 +21,7 @@ fn run_test(test_case: &[&str]) {
 }
 
 #[test]
+#[ignore]
 fn no_rows() {
     run_test(&[]);
 }
@@ -62,7 +63,7 @@ fn horizontal_line() {
 }
 
 #[test]
-#[ignore]
+// #[ignore]
 fn horizontal_line_mines_at_edges() {
     run_test(&["*1 1*"]);
 }

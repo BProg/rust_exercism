@@ -15,19 +15,24 @@ impl MineField {
     }
 
     pub fn annotate(&mut self) {
-        self.enumerate_positions(|col, row| {
+        for (col, row) in self.enumerate_positions() {
             if self.is_mine(col, row) == 1 {
-                return;
+                continue;
             }
             let mines_around = self.compute_mines_around(col, row);
+            if mines_around == 0 {
+                continue;
+            }
             match (
-                self.grid.get_mut(col).and_then(|cell_row| cell_row.get_mut(row)),
+                self.grid
+                    .get_mut(col)
+                    .and_then(|cell_row| cell_row.get_mut(row)),
                 std::char::from_digit(mines_around, 10),
             ) {
                 (Some(cell), Some(digit)) => *cell = digit,
                 _ => (),
             }
-        });
+        }
     }
 
     pub fn get_annotated_rows(self) -> Vec<String> {
@@ -37,12 +42,14 @@ impl MineField {
         })
     }
 
-    fn enumerate_positions<F: FnMut(usize, usize)>(&self, mut position: F) {
+    fn enumerate_positions(&self) -> Vec<(usize, usize)> {
+        let mut positions = vec![];
         for column_idx in 0..self.grid.len() {
             for row_idx in 0..self.grid[column_idx].len() {
-                position(column_idx, row_idx);
+                positions.push((column_idx, row_idx));
             }
         }
+        positions
     }
 
     fn compute_mines_around(&self, column_idx: usize, row_idx: usize) -> u32 {
