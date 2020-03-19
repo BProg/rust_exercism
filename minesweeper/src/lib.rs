@@ -1,69 +1,90 @@
-pub fn annotate(minefield: &[&str]) -> Vec<String> {
-    let is_mine_here = |x: usize, y: usize| {
-        minefield[y as usize].chars().collect::<Vec<char>>()[x as usize] == '*'
-    };
+const MINE: char = '*';
+const EMPTY: char = ' ';
 
-    let height = minefield.len() as i32;
-    if height == 0 { return vec![]; }
-    let width = minefield[0].len() as i32;
-    let mut field_with_numbers: Vec<String> = vec![];
-    for i in 0..height {
-        let mut row_with_numbers = String::from("");
-        for j in 0..width {
-            let mut mines_around = 0u32;
-            if is_mine_here(j as usize, i as usize) {
-                row_with_numbers.push('*');
-                continue;
+struct MineField {
+    grid: Vec<Vec<char>>,
+}
+
+impl MineField {
+    fn new() -> Self {
+        MineField { grid: vec![] }
+    }
+
+    pub fn plant_mines_in_row(&mut self, row: &str) {
+        self.grid.push(row.chars().collect())
+    }
+
+    pub fn annotate(&mut self) {
+        self.enumerate_positions(|col, row| {
+            if self.is_mine(col, row) == 1 {
+                return;
             }
-            for (x, y) in look_around((j as i32, i as i32)) {
-                if y >= 0 && y < height && x >= 0 && x < width {
-                    if is_mine_here(x as usize, y as usize) {
-                        mines_around += 1;
-                    }
-                }
+            let mines_around = self.compute_mines_around(col, row);
+            match (
+                self.grid.get_mut(col).and_then(|cell_row| cell_row.get_mut(row)),
+                std::char::from_digit(mines_around, 10),
+            ) {
+                (Some(cell), Some(digit)) => *cell = digit,
+                _ => (),
             }
-            if mines_around == 0 {
-                row_with_numbers.push(' ');
-            } else {
-                if let Some(ch) = std::char::from_digit(mines_around, 10) {
-                    row_with_numbers.push(ch);
-                } else {
-                    row_with_numbers.push(' ');
-                }
+        });
+    }
+
+    pub fn get_annotated_rows(self) -> Vec<String> {
+        self.grid.into_iter().fold(vec![], |mut acc, row| {
+            acc.push(row.into_iter().collect());
+            acc
+        })
+    }
+
+    fn enumerate_positions<F: FnMut(usize, usize)>(&self, mut position: F) {
+        for column_idx in 0..self.grid.len() {
+            for row_idx in 0..self.grid[column_idx].len() {
+                position(column_idx, row_idx);
             }
         }
-        field_with_numbers.push(row_with_numbers);
     }
-    field_with_numbers
+
+    fn compute_mines_around(&self, column_idx: usize, row_idx: usize) -> u32 {
+        let mut found_mines = 0u32;
+        let count_mines = |col, row| found_mines += self.is_mine(col, row);
+        self.enumerate_around(column_idx, row_idx, count_mines);
+        found_mines
+    }
+
+    fn enumerate_around<F>(&self, column_idx: usize, row_idx: usize, mut position: F)
+    where
+        F: FnMut(usize, usize),
+    {
+        let from_col = if column_idx > 0 { column_idx - 1 } else { 0 };
+        let from_row = if row_idx > 0 { row_idx - 1 } else { 0 };
+        for col in from_col..=(column_idx + 1) {
+            for row in from_row..=(row_idx + 1) {
+                if col == column_idx && row == row_idx {
+                    continue;
+                }
+                position(col, row);
+            }
+        }
+    }
+
+    fn is_mine(&self, column_idx: usize, row_idx: usize) -> u32 {
+        match self
+            .grid
+            .get(column_idx)
+            .and_then(|cell_row| cell_row.get(row_idx))
+        {
+            Some(_cell @ &MINE) => 1,
+            _ => 0,
+        }
+    }
 }
 
-fn look_around((x, y): (i32, i32)) -> Vec<(i32, i32)> {
-    return vec![
-        (x - 1,  y - 1), // top left
-        (x,      y - 1), // top
-        (x + 1,  y - 1), // top right
-
-        (x - 1,  y + 1), // bottom left
-        (x,      y + 1), // bottom
-        (x + 1,  y + 1), // bottom right
-
-        (x - 1,  y), // left
-        (x + 1,  y), // right
-    ]
-}
-
-#[cfg(test)]
-#[test]
-fn test_look_around() {
-    let positions = look_around((0, 0));
-    assert_eq!(positions[0], (-1, -1));
-    assert_eq!(positions[1], (0, -1));
-    assert_eq!(positions[2], (1, -1));
-
-    assert_eq!(positions[3], (-1, 1));
-    assert_eq!(positions[4], (0, 1));
-    assert_eq!(positions[5], (1, 1));
-
-    assert_eq!(positions[6], (-1, 0));
-    assert_eq!(positions[7], (1, 0));
+pub fn annotate(minefield: &[&str]) -> Vec<String> {
+    let mut mine_field = MineField::new();
+    for row in minefield {
+        mine_field.plant_mines_in_row(row);
+    }
+    mine_field.annotate();
+    mine_field.get_annotated_rows()
 }
